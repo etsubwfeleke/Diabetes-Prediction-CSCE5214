@@ -8,15 +8,13 @@ from sklearn.preprocessing import MinMaxScaler
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="Diabetes Risk Predictor", layout="centered")
 
-# --- 2. SESSION STATE & CALLBACKS (Must be at the top) ---
-# Initialize default values if they don't exist
+# --- 2. SESSION STATE & CALLBACKS ---
 if 'glucose' not in st.session_state: st.session_state.glucose = 100
 if 'insulin' not in st.session_state: st.session_state.insulin = 30.0
 if 'bmi' not in st.session_state: st.session_state.bmi = 25.0
 if 'age' not in st.session_state: st.session_state.age = 30
 if 'submitted' not in st.session_state: st.session_state.submitted = False
 
-# This function runs BEFORE the app reruns, preventing the crash
 def clear_form():
     st.session_state.glucose = 100
     st.session_state.insulin = 30.0
@@ -27,7 +25,7 @@ def clear_form():
 # --- 3. CSS STYLING ---
 st.markdown("""
     <style>
-    /* Main Background: Purple Gradient */
+    /* Main Background */
     .stApp {
         background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
         background-attachment: fixed;
@@ -43,22 +41,24 @@ st.markdown("""
         margin-top: 2rem;
     }
 
-    /* Typography: Dark Gray Text */
-    h1 {
-        color: #333333 !important;
-        font-family: 'Segoe UI', sans-serif;
-        font-size: 1.8rem !important;
-        text-align: center;
-        margin-bottom: 0rem;
-    }
-    p, label, .stMarkdown, .stNumberInput label, .stCaption {
+    /* Text Colors */
+    h1, h2, h3, p, label, .stMarkdown, .stNumberInput label, .stCaption {
         color: #333333 !important;
     }
     
-    /* Caption Styling */
-    .stCaption {
-        color: #888888 !important;
-        font-size: 0.8rem;
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #f0f0f0;
+        border-radius: 5px;
+        padding: 10px 20px;
+        color: #333;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #667eea !important;
+        color: white !important;
     }
 
     /* Input Fields */
@@ -69,7 +69,7 @@ st.markdown("""
         border-radius: 10px;
     }
 
-    /* Buttons */
+    /* Primary Button */
     .stButton > button[kind="primary"] {
         width: 100%;
         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
@@ -86,6 +86,7 @@ st.markdown("""
         color: white;
     }
 
+    /* Secondary Button */
     .stButton > button[kind="secondary"] {
         width: 100%;
         background-color: #f0f0f0;
@@ -95,22 +96,19 @@ st.markdown("""
         font-weight: 600;
         margin-top: 10px;
     }
-    .stButton > button[kind="secondary"]:hover {
-        background-color: #e0e0e0;
-        color: #000;
-    }
 
-    /* Hide Streamlit UI */
+    /* Hide UI Elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Result Box Styling */
+    /* Risk Box Styling */
     .result-box {
         padding: 15px;
         border-radius: 10px;
-        margin-top: 20px;
+        margin-top: 10px;
         text-align: center;
+        margin-bottom: 20px;
     }
     .high-risk {
         background-color: #f8d7da;
@@ -125,7 +123,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 4. BACKEND LOGIC (AI & Model) ---
+# --- 4. BACKEND LOGIC ---
 api_key = os.environ.get("OPENAI_API_KEY")
 
 class MockResponse:
@@ -172,7 +170,6 @@ def load_resources():
         if os.path.exists('model.pkl'):
             model = pickle.load(open('model.pkl', 'rb'))
         
-        # Load Scaler or create fallback
         if os.path.exists('diabetes.csv'):
             dataset = pd.read_csv('diabetes.csv')
             X = dataset.iloc[:, [1, 4, 5, 7]].values
@@ -188,10 +185,10 @@ def load_resources():
 model, scaler = load_resources()
 
 # --- 5. UI LAYOUT ---
-st.markdown("<h1>🩺 Diabetes Risk Predictor</h1>", unsafe_allow_html=True)
+st.markdown("<h1>Diabetes Risk Predictor</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; margin-bottom: 25px;'>Enter your health metrics to assess your diabetes risk</p>", unsafe_allow_html=True)
 
-# Input Fields
+# Inputs
 glucose = st.number_input("Glucose Level (mg/dL)", min_value=0, max_value=300, key='glucose', help="Normal fasting: 70-100 mg/dL")
 st.caption("Low: 0-70 | Normal: 70-100 | High: 100+")
 
@@ -207,41 +204,55 @@ st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
 # Buttons
 col1, col2 = st.columns([1, 1]) 
-
 if st.button("Analyze Risk", type="primary"):
     st.session_state.submitted = True
 
-# --- FIX: Use on_click for proper state management ---
 st.button("Clear All", type="secondary", on_click=clear_form)
 
-# --- 6. RESULTS SECTION ---
+# --- 6. RESULTS SECTION (TABS RESTORED) ---
 if st.session_state.submitted:
     st.markdown("---")
     
     if model and scaler:
+        # Predict
         input_data = np.array([[st.session_state.glucose, st.session_state.insulin, st.session_state.bmi, st.session_state.age]])
         scaled_data = scaler.transform(input_data)
         prediction = model.predict(scaled_data)
         
-        is_diabetic = (prediction[0] == 1)
-        
-        if is_diabetic:
-            res_class = "high-risk"
-            res_text = "High Risk: You may have Diabetes."
+        # Calculate Likelihood
+        if hasattr(model, 'predict_proba'):
+            prob = model.predict_proba(scaled_data)[0][int(prediction[0])]
+            likelihood_score = round(prob * 100, 1)
         else:
-            res_class = "low-risk"
-            res_text = "Low Risk: You don't have Diabetes."
+            likelihood_score = 0
+            
+        is_diabetic = (prediction[0] == 1)
 
-        st.markdown(f"""
-            <div class='result-box {res_class}'>
-                <h3 style='margin:0; color: inherit;'>{res_text}</h3>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("### Diet & Lifestyle Recommendations")
-        with st.spinner("Generating..."):
-            advice = get_ai_suggestions(is_diabetic)
-            st.info(advice)
+        # Tabs
+        tab1, tab2, tab3 = st.tabs(["Prediction", "Likelihood", "Diet Plan"])
+
+        with tab1:
+            if is_diabetic:
+                st.markdown(f"""
+                    <div class='result-box high-risk'>
+                        <h3 style='margin:0; color: inherit;'>High Risk: You may have Diabetes.</h3>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                    <div class='result-box low-risk'>
+                        <h3 style='margin:0; color: inherit;'>Low Risk: You don't have Diabetes.</h3>
+                    </div>
+                """, unsafe_allow_html=True)
+
+        with tab2:
+            st.markdown(f"<h3 style='text-align: center;'>Probability: {likelihood_score}%</h3>", unsafe_allow_html=True)
+            st.progress(likelihood_score / 100)
+            
+        with tab3:
+            with st.spinner("Generating diet plan..."):
+                advice = get_ai_suggestions(is_diabetic)
+                st.info(advice)
             
     else:
         st.error("Model not loaded. Please check repository.")
