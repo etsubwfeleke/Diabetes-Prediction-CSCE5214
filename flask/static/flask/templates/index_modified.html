@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html >
+<!--From https://codepen.io/frytyler/pen/EGdtg-->
+<head>
+  <meta charset="UTF-8">
+  <title>Diabetes Predictor</title>
+  <link href='https://fonts.googleapis.com/css?family=Pacifico' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Arimo' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Hind:300' rel='stylesheet' type='text/css'>
+<link href='https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  
+</head>
+
+<body>
+ <div class="login">
+	<h1>Diabetes Predictor</h1>
+
+     
+    <form action="{{ url_for('predict')}}"method="post">
+        <input type="text" name="Glucose Level" placeholder="Glucose Level" required="required" />
+    	  <input type="text" name="Insulin" placeholder="Insulin" required="required" />
+        <input type="text" name="BMI" placeholder="BMI" required="required" />
+        <input type="text" name="Age" placeholder="Age" required="required" />
+		
+
+        <button type="submit" class="btn btn-primary btn-block btn-large">Predict</button>
+    </form>
+   {{ prediction_text }}
+   <br>
+   <br>
+   <form action="{{url_for('likelihood')}}"method="post">
+        <button type="submit" class="btn btn-primary btn-block btn-large">Likelihood</button>
+  </form>
+   {{ likelihood_text }}
+   <br>
+   <br>
+   <form action="{{url_for('diet')}}"method="post">
+        <button type="submit" class="btn btn-primary btn-block btn-large">Diet</button>
+  </form>
+  <textarea id="diet_rec" name="diet_rec" rows="10" cols="50">
+        {{ diet_recommend_text }}
+  </textarea>
+
+ </div>
+</body>
+</html>
