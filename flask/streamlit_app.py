@@ -8,16 +8,32 @@ from sklearn.preprocessing import MinMaxScaler
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="Diabetes Risk Predictor", layout="centered")
 
-# --- 2. CSS STYLING (The Magic Part) ---
+# --- 2. SESSION STATE & CALLBACKS (Must be at the top) ---
+# Initialize default values if they don't exist
+if 'glucose' not in st.session_state: st.session_state.glucose = 100
+if 'insulin' not in st.session_state: st.session_state.insulin = 30.0
+if 'bmi' not in st.session_state: st.session_state.bmi = 25.0
+if 'age' not in st.session_state: st.session_state.age = 30
+if 'submitted' not in st.session_state: st.session_state.submitted = False
+
+# This function runs BEFORE the app reruns, preventing the crash
+def clear_form():
+    st.session_state.glucose = 100
+    st.session_state.insulin = 30.0
+    st.session_state.bmi = 25.0
+    st.session_state.age = 30
+    st.session_state.submitted = False
+
+# --- 3. CSS STYLING ---
 st.markdown("""
     <style>
-    /* 1. Force the Main Background to be the Purple Gradient */
+    /* Main Background: Purple Gradient */
     .stApp {
         background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
         background-attachment: fixed;
     }
 
-    /* 2. Create the White Card Container */
+    /* White Card Container */
     .main .block-container {
         background-color: white;
         padding: 2rem 3rem;
@@ -27,7 +43,7 @@ st.markdown("""
         margin-top: 2rem;
     }
 
-    /* 3. Typography Fixes (Force Dark Text on White Background) */
+    /* Typography: Dark Gray Text */
     h1 {
         color: #333333 !important;
         font-family: 'Segoe UI', sans-serif;
@@ -35,17 +51,17 @@ st.markdown("""
         text-align: center;
         margin-bottom: 0rem;
     }
-    p, label, .stMarkdown, .stNumberInput label {
+    p, label, .stMarkdown, .stNumberInput label, .stCaption {
         color: #333333 !important;
     }
     
-    /* Caption Styling (The small text below inputs) */
+    /* Caption Styling */
     .stCaption {
         color: #888888 !important;
         font-size: 0.8rem;
     }
 
-    /* 4. Input Fields Styling */
+    /* Input Fields */
     .stNumberInput input {
         background-color: #f8f9fa;
         color: #333;
@@ -53,7 +69,7 @@ st.markdown("""
         border-radius: 10px;
     }
 
-    /* 5. "Analyze Risk" Button (Primary) */
+    /* Buttons */
     .stButton > button[kind="primary"] {
         width: 100%;
         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
@@ -70,7 +86,6 @@ st.markdown("""
         color: white;
     }
 
-    /* 6. "Clear All" Button (Secondary) */
     .stButton > button[kind="secondary"] {
         width: 100%;
         background-color: #f0f0f0;
@@ -85,7 +100,7 @@ st.markdown("""
         color: #000;
     }
 
-    /* Hide Streamlit Default UI Elements */
+    /* Hide Streamlit UI */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -110,20 +125,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SESSION STATE (For Clear Button) ---
-if 'glucose' not in st.session_state: st.session_state.glucose = 100
-if 'insulin' not in st.session_state: st.session_state.insulin = 30.0
-if 'bmi' not in st.session_state: st.session_state.bmi = 25.0
-if 'age' not in st.session_state: st.session_state.age = 30
-
-def clear_form():
-    st.session_state.glucose = 100
-    st.session_state.insulin = 30.0
-    st.session_state.bmi = 25.0
-    st.session_state.age = 30
-    st.session_state.submitted = False
-
-# --- 4. BACKEND LOGIC ---
+# --- 4. BACKEND LOGIC (AI & Model) ---
 api_key = os.environ.get("OPENAI_API_KEY")
 
 class MockResponse:
@@ -185,13 +187,11 @@ def load_resources():
 
 model, scaler = load_resources()
 
-# --- 5. UI LAYOUT (Matching the Screenshot) ---
-
-# Header with Icon
+# --- 5. UI LAYOUT ---
 st.markdown("<h1>🩺 Diabetes Risk Predictor</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; margin-bottom: 25px;'>Enter your health metrics to assess your diabetes risk</p>", unsafe_allow_html=True)
 
-# Input Fields (Using session state keys)
+# Input Fields
 glucose = st.number_input("Glucose Level (mg/dL)", min_value=0, max_value=300, key='glucose', help="Normal fasting: 70-100 mg/dL")
 st.caption("Low: 0-70 | Normal: 70-100 | High: 100+")
 
@@ -206,19 +206,16 @@ age = st.number_input("Age (years)", min_value=1, max_value=120, key='age')
 st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
 
 # Buttons
-# Note: We use type='primary' for the purple button and 'secondary' for gray
 col1, col2 = st.columns([1, 1]) 
 
-# We do a vertical stack of buttons to match the image exactly
 if st.button("Analyze Risk", type="primary"):
     st.session_state.submitted = True
 
-if st.button("Clear All", type="secondary"):
-    clear_form()
-    st.rerun()
+# --- FIX: Use on_click for proper state management ---
+st.button("Clear All", type="secondary", on_click=clear_form)
 
 # --- 6. RESULTS SECTION ---
-if st.session_state.get('submitted', False):
+if st.session_state.submitted:
     st.markdown("---")
     
     if model and scaler:
@@ -228,7 +225,6 @@ if st.session_state.get('submitted', False):
         
         is_diabetic = (prediction[0] == 1)
         
-        # Determine styling based on result
         if is_diabetic:
             res_class = "high-risk"
             res_text = "High Risk: You may have Diabetes."
@@ -236,14 +232,12 @@ if st.session_state.get('submitted', False):
             res_class = "low-risk"
             res_text = "Low Risk: You don't have Diabetes."
 
-        # Display Result Card
         st.markdown(f"""
             <div class='result-box {res_class}'>
                 <h3 style='margin:0; color: inherit;'>{res_text}</h3>
             </div>
         """, unsafe_allow_html=True)
         
-        # AI Suggestions (Plain text, no complex tabs to match simple design)
         st.markdown("### Diet & Lifestyle Recommendations")
         with st.spinner("Generating..."):
             advice = get_ai_suggestions(is_diabetic)
