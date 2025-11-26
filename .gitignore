@@ -2,3 +2,10 @@
 # private files
 index.html
 intex.html
+
+OPENAI_API_KEY="dummy_key"
+.env
+style_trial.css
+index_trial.html
+
+app_trial.py

@@ -33,7 +33,7 @@ import pickle
 # In[2]:
 
 
-dataset = pd.read_csv('diabetes.csv')
+dataset = pd.read_csv('flask/diabetes.csv')
 
 
 
